@@ -1,0 +1,136 @@
+---
+# task6_syslog_ntp/syslog_ntp.yml
+# Bigfork IT — Capstone Lab — Task 6: Syslog & NTP
+#
+# Run from capstone_automation/ root:
+#   ansible-playbook -i ansible_inventory.yml task6_syslog_ntp/syslog_ntp.yml
+#   ansible-playbook -i ansible_inventory.yml task6_syslog_ntp/syslog_ntp.yml --tags syslog
+#   ansible-playbook -i ansible_inventory.yml task6_syslog_ntp/syslog_ntp.yml --tags ntp
+#   ansible-playbook -i ansible_inventory.yml task6_syslog_ntp/syslog_ntp.yml --tags verify
+
+- name: Task 6 — Configure Syslog and NTP via raw SSH
+  hosts: all_switches
+  gather_facts: no
+  vars:
+    ansible_connection: ssh
+    ansible_user: case
+    ansible_password: "sidewaays"
+    ansible_ssh_common_args: >-
+      -o StrictHostKeyChecking=no
+      -o KexAlgorithms=+diffie-hellman-group14-sha1
+      -o HostKeyAlgorithms=+ssh-rsa
+      -o PubkeyAcceptedKeyTypes=+ssh-rsa
+    syslog_server: "10.10.10.108"
+    syslog_port:   514
+    ntp_primary:   "10.10.10.1"
+    timezone:      "PST"
+    tz_offset:     -480
+
+  tasks:
+    # ── SYSLOG ────────────────────────────────────────────────
+    - name: "{{ inventory_hostname }} — add syslog target"
+      ansible.builtin.raw: "configure syslog add {{ syslog_server }}:{{ syslog_port }} vr VR-Default local7"
+      ignore_errors: yes
+      tags: syslog
+
+    - name: "{{ inventory_hostname }} — enable syslog target"
+      ansible.builtin.raw: "enable log target syslog {{ syslog_server }}:{{ syslog_port }} vr VR-Default"
+      ignore_errors: yes
+      tags: syslog
+
+    - name: "{{ inventory_hostname }} — set syslog severity"
+      ansible.builtin.raw: "configure log target syslog {{ syslog_server }}:{{ syslog_port }} vr VR-Default severity warnings"
+      ignore_errors: yes
+      tags: syslog
+
+    - name: "{{ inventory_hostname }} — add all events to log filter"
+      ansible.builtin.raw: "configure log filter DefaultFilter add events all"
+      ignore_errors: yes
+      tags: syslog
+
+    - name: "{{ inventory_hostname }} — enable console logging"
+      ansible.builtin.raw: "enable log target console"
+      tags: syslog
+
+    # ── NTP ───────────────────────────────────────────────────
+    - name: "{{ inventory_hostname }} — set timezone"
+      ansible.builtin.raw: "configure timezone name {{ timezone }} {{ tz_offset }}"
+      tags: ntp
+
+    - name: "{{ inventory_hostname }} — enable SNTP client"
+      ansible.builtin.raw: "enable sntp-client"
+      tags: ntp
+
+    - name: "{{ inventory_hostname }} — set primary NTP (pfSense)"
+      ansible.builtin.raw: "configure sntp-client server primary {{ ntp_primary }}"
+      tags: ntp
+
+    - name: "{{ inventory_hostname }} — set secondary NTP (public)"
+      ansible.builtin.raw: "configure sntp-client server secondary 0.pool.ntp.org"
+      ignore_errors: yes
+      tags: ntp
+
+    - name: "{{ inventory_hostname }} — set NTP update interval"
+      ansible.builtin.raw: "configure sntp-client update-interval 3600"
+      tags: ntp
+
+    # ── SAVE ──────────────────────────────────────────────────
+    - name: "{{ inventory_hostname }} — save configuration"
+      ansible.builtin.raw: "save configuration primary"
+
+    # ── VERIFY ────────────────────────────────────────────────
+    - name: "{{ inventory_hostname }} — verify syslog config"
+      ansible.builtin.raw: "show log configuration"
+      register: log_cfg
+      tags: verify
+
+    - name: "{{ inventory_hostname }} — verify SNTP status"
+      ansible.builtin.raw: "show sntp-client"
+      register: sntp_cfg
+      tags: verify
+
+    - name: "{{ inventory_hostname }} — syslog/NTP verification output"
+      debug:
+        msg:
+          - "Syslog: {{ log_cfg.stdout_lines | default([]) }}"
+          - "SNTP:   {{ sntp_cfg.stdout_lines | default([]) }}"
+      tags: verify
+
+
+# ── PLAY 2: Validate rsyslog on Ubu-WS01 ─────────────────────────────────────
+- name: Task 6 — Validate rsyslog on Ubu-WS01
+  hosts: localhost
+  gather_facts: no
+  tags: [syslog, verify]
+  tasks:
+    - name: Check rsyslog UDP 514 is listening
+      shell: ss -ulnp | grep ':514'
+      register: rsyslog_check
+      ignore_errors: yes
+      changed_when: false
+
+    - name: rsyslog OK
+      debug:
+        msg: "rsyslog UDP 514 is listening on Ubu-WS01"
+      when: rsyslog_check.rc == 0
+
+    - name: rsyslog NOT running
+      debug:
+        msg:
+          - "rsyslog UDP 514 not listening. Run:"
+          - "  sudo apt install -y rsyslog"
+          - "  # Edit /etc/rsyslog.conf — uncomment:"
+          - "  #   module(load='imudp')"
+          - "  #   input(type='imudp' port='514')"
+          - "  sudo systemctl restart rsyslog && sudo systemctl enable rsyslog"
+      when: rsyslog_check.rc != 0
+
+    - name: Task 6 summary
+      debug:
+        msg:
+          - "========================================================"
+          - "  Task 6: Syslog & NTP Complete"
+          - "  Watch live: sudo tail -f /var/log/syslog"
+          - "  pfSense syslog: Status > System Logs > Settings"
+          - "    Remote server: 10.10.10.108:514 UDP"
+          - "========================================================"

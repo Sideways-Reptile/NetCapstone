@@ -1,0 +1,182 @@
+---
+# ============================================================
+# Task 10 — Port Security: Sticky MAC + Port Isolation
+# Bigfork IT GNS3 Capstone
+#
+# Usage:
+#   ansible-playbook -i ansible_inventory.yml task10_audit/port_security.yml
+#   ansible-playbook -i ansible_inventory.yml task10_audit/port_security.yml --limit SW4-ACCESS1-CORP
+#   ansible-playbook -i ansible_inventory.yml task10_audit/port_security.yml --tags verify
+#
+# Design:
+#   Sticky MAC  → SW4-ACCESS1-CORP port 3 (CORP devices)
+#               → SW5-ACCESS2-DMZ  port 3 (FILE-SVR1)
+#               → BR-SW1           ports 2-3 (Branch devices)
+#   Port Isolation → ALL access ports including GUEST (SW3-DIST-2 port 4)
+#   NEVER lock or isolate trunk ports
+# ============================================================
+
+- name: "Port Security — Sticky MAC on CORP and DMZ Access Ports"
+  hosts: SW4-ACCESS1-CORP,SW5-ACCESS2-DMZ
+  gather_facts: false
+  vars:
+    ansible_connection: ssh
+    ansible_user: case
+    ansible_password: "sidewaays"
+    ansible_ssh_common_args: >-
+      -o StrictHostKeyChecking=no
+      -o KexAlgorithms=+diffie-hellman-group14-sha1
+      -o HostKeyAlgorithms=+ssh-rsa
+      -o PubkeyAcceptedKeyTypes=+ssh-rsa
+
+  tasks:
+
+    - name: "Enable MAC locking globally"
+      ansible.builtin.raw: "enable mac-locking"
+      tags: [mac_lock, configure]
+
+    - name: "CORP — enable MAC locking on port 3 (CORP devices)"
+      ansible.builtin.raw: |
+        enable mac-locking ports 3 vlan CORP_NET
+        configure mac-locking ports 3 vlan CORP_NET maximum-MAC-addresses 1
+        configure mac-locking ports 3 vlan CORP_NET learn-until-lock
+      when: inventory_hostname == 'SW4-ACCESS1-CORP'
+      tags: [mac_lock, configure]
+
+    - name: "DMZ — enable MAC locking on port 3 (FILE-SVR1)"
+      ansible.builtin.raw: |
+        enable mac-locking ports 3 vlan DMZ_NET
+        configure mac-locking ports 3 vlan DMZ_NET maximum-MAC-addresses 1
+        configure mac-locking ports 3 vlan DMZ_NET learn-until-lock
+      when: inventory_hostname == 'SW5-ACCESS2-DMZ'
+      tags: [mac_lock, configure]
+
+    - name: "Enable port isolation on access port 3"
+      ansible.builtin.raw: "configure port 3 isolation on"
+      tags: [isolation, configure]
+
+    - name: "Save configuration"
+      ansible.builtin.raw: "save configuration"
+      tags: [mac_lock, isolation, configure]
+
+    - name: "Verify MAC locking"
+      ansible.builtin.raw: "show mac-locking ports 3"
+      register: mac_lock_output
+      changed_when: false
+      tags: [verify]
+
+    - name: "Verify port isolation"
+      ansible.builtin.raw: "show port isolation"
+      register: isolation_output
+      changed_when: false
+      tags: [verify]
+
+    - name: "Display MAC lock status"
+      ansible.builtin.debug:
+        msg: "{{ mac_lock_output.stdout_lines }}"
+      tags: [verify]
+
+    - name: "Display isolation status"
+      ansible.builtin.debug:
+        msg: "{{ isolation_output.stdout_lines }}"
+      tags: [verify]
+
+
+- name: "Port Security — Port Isolation on GUEST Port (SW3-DIST-2)"
+  hosts: SW3-DIST-2
+  gather_facts: false
+  vars:
+    ansible_connection: ssh
+    ansible_user: case
+    ansible_password: "sidewaays"
+    ansible_ssh_common_args: >-
+      -o StrictHostKeyChecking=no
+      -o KexAlgorithms=+diffie-hellman-group14-sha1
+      -o HostKeyAlgorithms=+ssh-rsa
+      -o PubkeyAcceptedKeyTypes=+ssh-rsa
+
+  tasks:
+
+    - name: "GUEST — port isolation only on port 4 (WS-Gst)"
+      ansible.builtin.raw: "configure port 4 isolation on"
+      tags: [isolation, configure]
+      # NOTE: No MAC locking on GUEST — high-churn environment.
+      # Port isolation forces all GUEST traffic through pfSense firewall.
+
+    - name: "Save configuration"
+      ansible.builtin.raw: "save configuration"
+      tags: [isolation, configure]
+
+    - name: "Verify port isolation on GUEST port"
+      ansible.builtin.raw: "show port isolation"
+      register: guest_isolation
+      changed_when: false
+      tags: [verify]
+
+    - name: "Display GUEST isolation status"
+      ansible.builtin.debug:
+        msg: "{{ guest_isolation.stdout_lines }}"
+      tags: [verify]
+
+
+- name: "Port Security — Branch Switch (BR-SW1)"
+  hosts: BR-SW1
+  gather_facts: false
+  vars:
+    ansible_connection: ssh
+    ansible_user: case
+    ansible_password: "sidewaays"
+    ansible_ssh_common_args: >-
+      -o StrictHostKeyChecking=no
+      -o KexAlgorithms=+diffie-hellman-group14-sha1
+      -o HostKeyAlgorithms=+ssh-rsa
+      -o PubkeyAcceptedKeyTypes=+ssh-rsa
+
+  tasks:
+
+    - name: "Enable MAC locking globally on Branch switch"
+      ansible.builtin.raw: "enable mac-locking"
+      tags: [mac_lock, configure]
+
+    - name: "Branch — MAC lock port 2 (WIN10-WS1)"
+      ansible.builtin.raw: |
+        enable mac-locking ports 2 vlan Default
+        configure mac-locking ports 2 vlan Default maximum-MAC-addresses 1
+        configure mac-locking ports 2 vlan Default learn-until-lock
+      tags: [mac_lock, configure]
+
+    - name: "Branch — MAC lock port 3 (PC1)"
+      ansible.builtin.raw: |
+        enable mac-locking ports 3 vlan Default
+        configure mac-locking ports 3 vlan Default maximum-MAC-addresses 1
+        configure mac-locking ports 3 vlan Default learn-until-lock
+      tags: [mac_lock, configure]
+
+    - name: "Branch — port isolation on ports 2 and 3"
+      ansible.builtin.raw: |
+        configure port 2 isolation on
+        configure port 3 isolation on
+      tags: [isolation, configure]
+
+    - name: "Save Branch switch configuration"
+      ansible.builtin.raw: "save configuration"
+      tags: [mac_lock, isolation, configure]
+
+    - name: "Verify Branch MAC locking"
+      ansible.builtin.raw: "show mac-locking"
+      register: branch_mac
+      changed_when: false
+      tags: [verify]
+
+    - name: "Verify Branch port isolation"
+      ansible.builtin.raw: "show port isolation"
+      register: branch_iso
+      changed_when: false
+      tags: [verify]
+
+    - name: "Display Branch port security status"
+      ansible.builtin.debug:
+        msg:
+          - "MAC Locking: {{ branch_mac.stdout_lines }}"
+          - "Isolation:   {{ branch_iso.stdout_lines }}"
+      tags: [verify]

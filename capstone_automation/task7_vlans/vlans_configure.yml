@@ -1,0 +1,170 @@
+---
+# task7_vlans/vlans_configure.yml
+# Bigfork IT — Capstone Lab — Task 7: VLAN Segmentation & 802.1Q Trunking
+#
+# Run from capstone_automation/ root:
+#   ansible-playbook -i ansible_inventory.yml task7_vlans/vlans_configure.yml
+#   ansible-playbook -i ansible_inventory.yml task7_vlans/vlans_configure.yml --tags verify
+#   ansible-playbook -i ansible_inventory.yml task7_vlans/vlans_configure.yml --limit SW1-CORE
+
+# ── PLAY 1: Create VLANs on all switches ─────────────────────────────────────
+- name: Task 7 — Create VLANs on all switches
+  hosts: all_switches
+  gather_facts: no
+  vars:
+    ansible_connection: ssh
+    ansible_user: case
+    ansible_password: "sidewaays"
+    ansible_ssh_common_args: >-
+      -o StrictHostKeyChecking=no
+      -o KexAlgorithms=+diffie-hellman-group14-sha1
+      -o HostKeyAlgorithms=+ssh-rsa
+      -o PubkeyAcceptedKeyTypes=+ssh-rsa
+
+  tasks:
+    - name: "{{ inventory_hostname }} — create MGMT_NET VLAN 10"
+      ansible.builtin.raw: "create vlan MGMT_NET tag 10"
+      ignore_errors: yes
+
+    - name: "{{ inventory_hostname }} — create CORP_NET VLAN 20"
+      ansible.builtin.raw: "create vlan CORP_NET tag 20"
+      ignore_errors: yes
+
+    - name: "{{ inventory_hostname }} — create DMZ_NET VLAN 30"
+      ansible.builtin.raw: "create vlan DMZ_NET tag 30"
+      ignore_errors: yes
+
+    - name: "{{ inventory_hostname }} — create GUEST_NET VLAN 40"
+      ansible.builtin.raw: "create vlan GUEST_NET tag 40"
+      ignore_errors: yes
+
+    - name: "{{ inventory_hostname }} — save after VLAN creation"
+      ansible.builtin.raw: "save configuration primary"
+
+    - name: "{{ inventory_hostname }} — verify VLANs"
+      ansible.builtin.raw: "show vlan"
+      register: vlan_list
+      tags: verify
+
+    - name: "{{ inventory_hostname }} — VLAN list"
+      debug:
+        msg: "{{ vlan_list.stdout_lines | default([]) }}"
+      tags: verify
+
+
+# ── PLAY 2: Configure trunk ports (Core and Distribution) ────────────────────
+- name: Task 7 — Configure trunk ports on Core and Distribution
+  hosts: core,distribution
+  gather_facts: no
+  vars:
+    ansible_connection: ssh
+    ansible_user: case
+    ansible_password: "sidewaays"
+    ansible_ssh_common_args: >-
+      -o StrictHostKeyChecking=no
+      -o KexAlgorithms=+diffie-hellman-group14-sha1
+      -o HostKeyAlgorithms=+ssh-rsa
+      -o PubkeyAcceptedKeyTypes=+ssh-rsa
+    trunk_ports: "1,2,3,5"
+
+  tasks:
+    - name: "{{ inventory_hostname }} — tag MGMT_NET on trunk ports"
+      ansible.builtin.raw: "configure vlan MGMT_NET add ports {{ trunk_ports }} tagged"
+      ignore_errors: yes
+
+    - name: "{{ inventory_hostname }} — tag CORP_NET on trunk ports"
+      ansible.builtin.raw: "configure vlan CORP_NET add ports {{ trunk_ports }} tagged"
+      ignore_errors: yes
+
+    - name: "{{ inventory_hostname }} — tag DMZ_NET on trunk ports"
+      ansible.builtin.raw: "configure vlan DMZ_NET add ports {{ trunk_ports }} tagged"
+      ignore_errors: yes
+
+    - name: "{{ inventory_hostname }} — tag GUEST_NET on trunk ports"
+      ansible.builtin.raw: "configure vlan GUEST_NET add ports {{ trunk_ports }} tagged"
+      ignore_errors: yes
+
+    - name: "{{ inventory_hostname }} — GUEST_NET untagged on port 4 (Win10 guest)"
+      ansible.builtin.raw: "configure vlan GUEST_NET add ports 4 untagged"
+      when: inventory_hostname == 'SW3-DIST-2'
+      ignore_errors: yes
+
+    - name: "{{ inventory_hostname }} — save"
+      ansible.builtin.raw: "save configuration primary"
+
+
+# ── PLAY 3: Configure access switches ────────────────────────────────────────
+- name: Task 7 — Configure access switch uplinks and access ports
+  hosts: access
+  gather_facts: no
+  vars:
+    ansible_connection: ssh
+    ansible_user: case
+    ansible_password: "sidewaays"
+    ansible_ssh_common_args: >-
+      -o StrictHostKeyChecking=no
+      -o KexAlgorithms=+diffie-hellman-group14-sha1
+      -o HostKeyAlgorithms=+ssh-rsa
+      -o PubkeyAcceptedKeyTypes=+ssh-rsa
+    uplink_port: "1"
+    access_port:  "24"
+
+  tasks:
+    - name: "{{ inventory_hostname }} — tag all VLANs on uplink port"
+      ansible.builtin.raw: "{{ item }}"
+      loop:
+        - "configure vlan MGMT_NET add ports {{ uplink_port }} tagged"
+        - "configure vlan CORP_NET add ports {{ uplink_port }} tagged"
+        - "configure vlan DMZ_NET add ports {{ uplink_port }} tagged"
+        - "configure vlan GUEST_NET add ports {{ uplink_port }} tagged"
+      ignore_errors: yes
+
+    - name: "SW4-ACCESS1-CORP — port 3 untagged CORP_NET"
+      ansible.builtin.raw: "configure vlan CORP_NET add ports {{ access_port }} untagged"
+      when: inventory_hostname == 'SW3-DIST-2'
+      ignore_errors: yes
+
+    - name: "SW5-ACCESS2-DMZ — port 3 untagged DMZ_NET"
+      ansible.builtin.raw: "configure vlan DMZ_NET add ports {{ access_port }} untagged"
+      when: inventory_hostname == 'SW3-DIST-2'
+      ignore_errors: yes
+
+    - name: "SW3-DIST-2 — port 4 untagged GUEST_NET"
+      ansible.builtin.raw: "configure vlan GUEST_NET add ports {{ access_port }} untagged"
+      when: inventory_hostname == 'SW3-DIST-2'
+      ignore_errors: yes
+
+    - name: "{{ inventory_hostname }} — save"
+      ansible.builtin.raw: "save configuration primary"
+
+
+# ── PLAY 4: Final verification ────────────────────────────────────────────────
+- name: Task 7 — Final VLAN verification
+  hosts: all_switches
+  gather_facts: no
+  vars:
+    ansible_connection: ssh
+    ansible_user: case
+    ansible_password: "sidewaays"
+    ansible_ssh_common_args: >-
+      -o StrictHostKeyChecking=no
+      -o KexAlgorithms=+diffie-hellman-group14-sha1
+      -o HostKeyAlgorithms=+ssh-rsa
+      -o PubkeyAcceptedKeyTypes=+ssh-rsa
+  tags: verify
+
+  tasks:
+    - name: "{{ inventory_hostname }} — show vlan detail"
+      ansible.builtin.raw: "show vlan detail"
+      register: vlan_detail
+
+    - name: Save VLAN detail to local file
+      local_action:
+        module: copy
+        content: "VLAN Detail — {{ inventory_hostname }}\nRole: {{ switch_role }}\n\n{{ vlan_detail.stdout }}\n"
+        dest: "./vlan_verify_{{ inventory_hostname }}.txt"
+      ignore_errors: yes
+
+    - name: Task 7 complete
+      debug:
+        msg: "{{ inventory_hostname }}: VLANs configured — see vlan_verify_{{ inventory_hostname }}.txt"

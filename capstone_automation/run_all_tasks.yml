@@ -1,0 +1,95 @@
+---
+# run_all_tasks.yml
+# Bigfork IT — Capstone Lab — Master Playbook
+#
+# Run from capstone_automation/ root:
+#   ansible-playbook -i ansible_inventory.yml run_all_tasks.yml
+#   ansible-playbook -i ansible_inventory.yml run_all_tasks.yml --tags task5
+#   ansible-playbook -i ansible_inventory.yml run_all_tasks.yml --tags verify
+
+# ── Pre-flight ────────────────────────────────────────────────────────────────
+- name: Pre-flight — Check collection and connectivity
+  hosts: localhost
+  gather_facts: no
+  tags: [preflight, always]
+  tasks:
+    - name: Check extremenetworks.exos collection
+      command: ansible-galaxy collection list extremenetworks.exos
+      register: col_check
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Collection status
+      debug:
+        msg: >-
+          {{ 'extremenetworks.exos INSTALLED — full module support available'
+             if col_check.rc == 0
+             else 'Collection NOT installed — all playbooks using raw SSH fallback (fully functional). To install: bash utils/install_collections.sh' }}
+
+- name: Pre-flight — SSH reachability check
+  hosts: all_switches
+  gather_facts: no
+  tags: [preflight, always]
+  vars:
+    ansible_connection: ssh
+    ansible_user: case
+    ansible_password: "sidewaays"
+    ansible_ssh_common_args: >-
+      -o StrictHostKeyChecking=no
+      -o ConnectTimeout=5
+      -o KexAlgorithms=+diffie-hellman-group14-sha1
+      -o HostKeyAlgorithms=+ssh-rsa
+      -o PubkeyAcceptedKeyTypes=+ssh-rsa
+  tasks:
+    - name: "{{ inventory_hostname }} — SSH check"
+      ansible.builtin.raw: "show switch | grep SysName"
+      register: ssh_check
+      ignore_errors: yes
+
+    - name: "{{ inventory_hostname }} — reachability result"
+      debug:
+        msg: >-
+          {{ inventory_hostname }} ({{ ansible_host }}):
+          {{ 'REACHABLE' if ssh_check.rc == 0 else 'UNREACHABLE — check GNS3 node is started' }}
+
+# ── Tasks ─────────────────────────────────────────────────────────────────────
+- import_playbook: task3_banners/banners.yml
+  tags: [task3, banners]
+
+- import_playbook: task5_stp/stp_configure.yml
+  tags: [task5, stp]
+
+- import_playbook: task6_syslog_ntp/syslog_ntp.yml
+  tags: [task6, syslog, ntp]
+
+- import_playbook: task7_vlans/vlans_configure.yml
+  tags: [task7, vlans]
+
+# ── Final summary ─────────────────────────────────────────────────────────────
+- name: Lab Automation Summary
+  hosts: localhost
+  gather_facts: no
+  tags: [summary, always]
+  tasks:
+    - name: Summary
+      debug:
+        msg:
+          - "========================================================"
+          - "  Bigfork IT Capstone — Ansible Automation Complete"
+          - ""
+          - "  Automated via Ansible (raw SSH):"
+          - "    Task 3: Login Banners              switches only"
+          - "    Task 5: STP Configuration          all switches"
+          - "    Task 6: Syslog & NTP               all switches"
+          - "    Task 7: VLAN Segmentation          all switches"
+          - ""
+          - "  Requires pfSense GUI or console:"
+          - "    Task 1: VLAN subinterfaces on em1"
+          - "    Task 2: Guest ACL aliases + rules"
+          - "    Task 4: DHCP pools"
+          - "    Task 8: Branch pfSense config"
+          - "    Task 9: IPSec VPN both ends"
+          - ""
+          - "  Run full audit:"
+          - "    python3 task10_audit/security_audit.py"
+          - "========================================================"
