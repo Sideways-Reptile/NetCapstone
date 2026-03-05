@@ -50,6 +50,11 @@
       ansible.builtin.raw: "enable mac-locking"
       tags: [mac_lock, configure]
 
+    - name: "Pause after global enable — allow EXOS to process"
+      ansible.builtin.pause:
+        seconds: 3
+      tags: [mac_lock, configure]
+
     - name: "Enable MAC locking on port 3"
       ansible.builtin.raw: "enable mac-locking ports 3"
       tags: [mac_lock, configure]
@@ -89,7 +94,7 @@
       tags: [verify]
 
     - name: "Verify port isolation"
-      ansible.builtin.raw: "show port isolation"
+      ansible.builtin.raw: "show ports information detail | grep Isolation"
       register: isolation_output
       changed_when: false
       tags: [verify]
@@ -136,7 +141,7 @@
       tags: [isolation, configure]
 
     - name: "Verify port isolation on GUEST port"
-      ansible.builtin.raw: "show port isolation"
+      ansible.builtin.raw: "show ports information detail | grep Isolation"
       register: guest_isolation
       changed_when: false
       tags: [verify]
@@ -168,6 +173,11 @@
 
     - name: "Enable MAC locking globally on Branch switch"
       ansible.builtin.raw: "enable mac-locking"
+      tags: [mac_lock, configure]
+
+    - name: "Pause after global enable — allow EXOS to process"
+      ansible.builtin.pause:
+        seconds: 3
       tags: [mac_lock, configure]
 
     - name: "Enable MAC locking on ports 2 and 3"
@@ -221,7 +231,7 @@
       tags: [verify]
 
     - name: "Verify Branch port isolation"
-      ansible.builtin.raw: "show port isolation"
+      ansible.builtin.raw: "show ports information detail | grep Isolation"
       register: branch_iso
       changed_when: false
       tags: [verify]
