@@ -9,7 +9,7 @@
 #   ansible-playbook -i ansible_inventory.yml task6_syslog_ntp/syslog_ntp.yml --tags verify
 
 - name: Task 6 — Configure Syslog and NTP via raw SSH
-  hosts: all_switches
+  hosts: hq_switches
   gather_facts: no
   vars:
     ansible_connection: ssh
@@ -52,6 +52,7 @@
 
     - name: "{{ inventory_hostname }} — enable console logging"
       ansible.builtin.raw: "enable log target console"
+      ignore_errors: yes
       tags: syslog
 
     # ── NTP ───────────────────────────────────────────────────
