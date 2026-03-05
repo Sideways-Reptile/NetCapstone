@@ -1,0 +1,42 @@
+---
+# Ansible Inventory — Bigfork IT Capstone Lab
+all:
+  vars:
+    ansible_user: case
+    ansible_password: "sidewaays"
+    ansible_connection: ssh
+    ansible_become: no
+
+  children:
+    hq_switches:
+      hosts:
+        SW1-CORE:
+          ansible_host: 10.10.10.11
+          switch_role: core
+        SW2-DIST-1:
+          ansible_host: 10.10.10.12
+          switch_role: distribution
+        SW3-DIST-2:
+          ansible_host: 10.10.10.13
+          switch_role: distribution
+        SW4-ACCESS1-CORP:
+          ansible_host: 10.10.10.14
+          switch_role: access
+        SW5-ACCESS2-DMZ:
+          ansible_host: 10.10.10.15
+          switch_role: access
+
+    core:
+      hosts:
+        SW1-CORE:
+
+    distribution:
+      hosts:
+        SW2-DIST-1:
+        SW3-DIST-2:
+
+    access:
+      hosts:
+        SW4-ACCESS1-CORP:
+        SW5-ACCESS2-DMZ:
+        
