@@ -27,9 +27,9 @@ PASSWORD = "sidewaays"
 BANNER_LINES = [
     "***********************************************",
     "*                                             *",
-    "*   AUTHORIZED ACCESS ONLY                   *",
+    "*   AUTHORIZED ACCESS ONLY                    *",
     "*                                             *",
-    "*   This system is property of Bigfork IT.   *",
+    "*   This system is property of Bigfork IT.    *",
     "*   All activity is monitored and logged.     *",
     "*   Unauthorized access is prohibited and     *",
     "*   will be prosecuted to the full extent     *",
