@@ -32,9 +32,9 @@ LAB_VLANS = {
 HQ_SWITCHES = {
     "SW1-CORE":     {"ip": "10.10.10.11", "role": "core",         "stp_priority": 4096},
     "SW2-DIST-1":     {"ip": "10.10.10.12", "role": "distribution", "stp_priority": 8192},
-    "SW3-DIST-2": {"ip": "10.10.10.13", "role": "access",       "stp_priority": 32768},
-    "SW4-ACCESS1-CORP": {"ip": "10.10.10.14", "role": "access",       "stp_priority": 32768},
-    "SW5-ACCESS2-DMZ": {"ip": "10.10.10.15", "role": "access",       "stp_priority": 32768},
+    "SW3-DIST-2": {"ip": "10.10.10.13", "role": "access",       "stp_priority": 8192},
+    "SW4-ACCESS1-CORP": {"ip": "10.10.10.14", "role": "access",       "stp_priority": 16384},
+    "SW5-ACCESS2-DMZ": {"ip": "10.10.10.15", "role": "access",       "stp_priority": 16384},
 }
 
 BRANCH_SWITCHES = {
