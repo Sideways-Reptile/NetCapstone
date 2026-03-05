@@ -1,0 +1,172 @@
+---
+# task3_banners/banners.yml
+# Bigfork IT — Capstone Lab — Task 3: Login Banners
+#
+# Works TWO ways:
+#   1. Raw SSH (no collection needed) — works immediately
+#   2. extremenetworks.exos collection — install first:
+#        bash utils/install_collections.sh
+#
+# Always run from capstone_automation/ root:
+#   ansible-playbook -i ansible_inventory.yml task3_banners/banners.yml
+#   ansible-playbook -i ansible_inventory.yml task3_banners/banners.yml --limit SW1-CORE
+
+# ── PLAY 1: Check if Extreme collection is installed ─────────────────────────
+- name: Task 3 — Pre-flight collection check
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Check for extremenetworks.exos collection
+      command: ansible-galaxy collection list extremenetworks.exos
+      register: collection_check
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Collection status
+      debug:
+        msg: >-
+          {{ 'extremenetworks.exos collection FOUND — using full EXOS modules'
+             if collection_check.rc == 0
+             else 'Collection NOT installed — using raw SSH fallback. Run: bash utils/install_collections.sh' }}
+
+    - name: Set collection available fact
+      set_fact:
+        exos_collection_available: "{{ collection_check.rc == 0 }}"
+
+
+# ── PLAY 2: Deploy banners via raw SSH (always works) ────────────────────────
+- name: Task 3 — Deploy banners via raw SSH
+  hosts: all_switches
+  gather_facts: no
+  vars:
+    ansible_connection: ssh
+    ansible_user: case
+    ansible_password: "sidewaays"
+    ansible_ssh_common_args: >-
+      -o StrictHostKeyChecking=no
+      -o KexAlgorithms=+diffie-hellman-group14-sha1
+      -o HostKeyAlgorithms=+ssh-rsa
+      -o PubkeyAcceptedKeyTypes=+ssh-rsa
+
+    banner_text: |
+      configure banner
+      ***********************************************
+      *                                             *
+      *   AUTHORIZED ACCESS ONLY                   *
+      *                                             *
+      *   This system is property of Bigfork IT.  *
+      *   All activity is monitored and logged.    *
+      *   Unauthorized access is prohibited and   *
+      *   will be prosecuted.                       *
+      *                                             *
+      *   Disconnect NOW if you are not an         *
+      *   authorized user.                          *
+      *                                             *
+      ***********************************************
+      .
+
+  tasks:
+    - name: "{{ inventory_hostname }} — deploy banner via raw SSH"
+      ansible.builtin.raw: |
+        configure banner
+        ***********************************************
+        *                                             *
+        *   AUTHORIZED ACCESS ONLY                   *
+        *                                             *
+        *   This system is property of Bigfork IT.  *
+        *   All activity is monitored and logged.    *
+        *   Unauthorized access is prohibited and   *
+        *   will be prosecuted.                       *
+        *                                             *
+        *   Disconnect NOW if you are not an         *
+        *   authorized user.                          *
+        *                                             *
+        ***********************************************
+        .
+      register: banner_raw
+      ignore_errors: yes
+
+    - name: Save configuration via raw SSH
+      ansible.builtin.raw: "save configuration primary"
+      register: save_raw
+      ignore_errors: yes
+
+    - name: Verify banner via raw SSH
+      ansible.builtin.raw: "show banner"
+      register: verify_raw
+
+    - name: Banner verification result
+      debug:
+        msg: >-
+          {{ inventory_hostname }}: {{ 'BANNER VERIFIED' if 'AUTHORIZED' in verify_raw.stdout else 'WARNING - banner not confirmed' }}
+
+
+# ── PLAY 3: Deploy via EXOS collection (if installed) ────────────────────────
+- name: Task 3 — Deploy banners via EXOS collection (if available)
+  hosts: all_switches
+  gather_facts: no
+  vars:
+    ansible_connection: ssh
+    ansible_shell_type: sh
+    ansible_python_interpreter: none
+    ansible_user: case
+    ansible_password: "sidewaays"
+
+  tasks:
+    - name: Check collection availability on this host
+      set_fact:
+        use_collection: false
+      run_once: true
+
+    - name: Try collection-based banner deploy
+      block:
+        - name: Deploy banner via exos module
+          extremenetworks.exos.exos_command:
+            commands:
+              - "configure banner"
+              - "***********************************************"
+              - "*   AUTHORIZED ACCESS ONLY                   *"
+              - "*   This system is Bigfork IT property.      *"
+              - "*   All activity monitored. Unauthorized     *"
+              - "*   access will be prosecuted.               *"
+              - "***********************************************"
+              - "."
+          register: module_banner
+
+        - name: Save via module
+          extremenetworks.exos.exos_command:
+            commands:
+              - "save configuration primary"
+
+        - name: Collection banner result
+          debug:
+            msg: "{{ inventory_hostname }}: collection-based banner deployed"
+
+      rescue:
+        - name: Collection unavailable — raw SSH already handled this
+          debug:
+            msg: "{{ inventory_hostname }}: collection not available, raw SSH method used in Play 2"
+      when: false   # Set to true after running: bash utils/install_collections.sh
+
+
+# ── PLAY 4: Summary ───────────────────────────────────────────────────────────
+- name: Task 3 — Summary
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Task 3 summary
+      debug:
+        msg:
+          - "========================================================"
+          - "  Task 3: Switch banners deployed"
+          - ""
+          - "  MANUAL steps still required:"
+          - "  1. pfSense banner (console option 8):"
+          - "     python3 task3_banners/deploy_banners.py --generate-only"
+          - "     Copy the shell block → paste into pfSense console"
+          - ""
+          - "  2. Windows 10 VM banner:"
+          - "     Copy deploy_windows_banner.ps1 to Win10 VM"
+          - "     Right-click → Run with PowerShell (as Admin)"
+          - "     Verify: Win+L → click user → banner popup appears"
+          - "========================================================"

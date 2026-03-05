@@ -1,0 +1,168 @@
+---
+# ============================================================
+# Task 8 — Branch Switch (BR-SW1) Full Configuration
+# Bigfork IT GNS3 Capstone
+#
+# Prerequisites:
+#   - BR-SW1 bootstrapped via console (10.20.10.21, SSH enabled)
+#   - BR-CAIrv-FW1 LAN configured (10.20.10.1/24)
+#
+# Usage:
+#   ansible-playbook -i ansible_inventory.yml task8_branch/branch_switch.yml
+#   ansible-playbook -i ansible_inventory.yml task8_branch/branch_switch.yml --tags verify
+# ============================================================
+
+- name: "Task 8 — Branch Switch Full Configuration"
+  hosts: BR-SW1
+  gather_facts: false
+  vars:
+    ansible_connection: ssh
+    ansible_shell_type: sh
+    ansible_python_interpreter: none
+    ansible_user: case
+    ansible_password: "sidewaays"
+    ansible_ssh_common_args: >-
+      -o StrictHostKeyChecking=no
+      -o KexAlgorithms=+diffie-hellman-group14-sha1
+      -o HostKeyAlgorithms=+ssh-rsa
+      -o PubkeyAcceptedKeyTypes=+ssh-rsa
+
+  tasks:
+
+    - name: "Confirm connectivity to BR-SW1"
+      ansible.builtin.raw: "show switch | grep -i 'system name'"
+      register: sw_info
+      changed_when: false
+      tags: [verify, always]
+
+    - name: "Display switch identity"
+      ansible.builtin.debug:
+        msg: "Connected to: {{ sw_info.stdout_lines }}"
+      tags: [verify, always]
+
+    # ── Hardening ─────────────────────────────────────────────────────────────
+
+    - name: "Disable telnet"
+      ansible.builtin.raw: "disable telnet"
+      tags: [harden, configure]
+
+    - name: "Set hostname"
+      ansible.builtin.raw: "configure snmp sysname BR-SW1"
+      tags: [harden, configure]
+
+    # ── MGMT IP (should already be set from bootstrap) ────────────────────────
+
+    - name: "Verify MGMT IP is set"
+      ansible.builtin.raw: "show vlan Default | grep -i 'primary'"
+      register: mgmt_ip
+      changed_when: false
+      tags: [verify]
+
+    - name: "Display MGMT IP"
+      ansible.builtin.debug:
+        msg: "MGMT IP: {{ mgmt_ip.stdout_lines }}"
+      tags: [verify]
+
+    # ── Access ports ──────────────────────────────────────────────────────────
+
+    - name: "Set port 2 untagged (WIN10-WS1)"
+      ansible.builtin.raw: "configure vlan Default add ports 2 untagged"
+      tags: [ports, configure]
+
+    - name: "Set port 3 untagged (PC1)"
+      ansible.builtin.raw: "configure vlan Default add ports 3 untagged"
+      tags: [ports, configure]
+
+    # ── NTP ───────────────────────────────────────────────────────────────────
+
+    - name: "Enable SNTP client"
+      ansible.builtin.raw: "enable sntp-client"
+      tags: [ntp, configure]
+
+    - name: "Set primary NTP server"
+      ansible.builtin.raw: "configure sntp-client server primary 0.pool.ntp.org"
+      tags: [ntp, configure]
+
+    - name: "Set timezone PST"
+      ansible.builtin.raw: "configure timezone name PST -480"
+      tags: [ntp, configure]
+
+    # ── Syslog (activates once IPSec tunnel is up in Task 9) ─────────────────
+
+    - name: "Configure syslog target (HQ Ubu-WS01 — activates after Task 9 VPN)"
+      ansible.builtin.raw: >
+        configure syslog add 10.10.10.108:514 vr VR-Default local7
+      tags: [syslog, configure]
+
+    - name: "Set syslog severity"
+      ansible.builtin.raw: "configure syslog 10.10.10.108:514 severity warnings"
+      tags: [syslog, configure]
+
+    - name: "Enable syslog target"
+      ansible.builtin.raw: "enable log target syslog 10.10.10.108:514 vr VR-Default"
+      tags: [syslog, configure]
+
+    # ── Banner ────────────────────────────────────────────────────────────────
+
+    - name: "Configure login banner line 1"
+      ansible.builtin.raw: "configure banner line 1 \"***********************************************\""
+      tags: [banner, configure]
+
+    - name: "Configure login banner line 2"
+      ansible.builtin.raw: "configure banner line 2 \"*   AUTHORIZED ACCESS ONLY — Bigfork IT       *\""
+      tags: [banner, configure]
+
+    - name: "Configure login banner line 3"
+      ansible.builtin.raw: "configure banner line 3 \"*   All activity monitored and logged.         *\""
+      tags: [banner, configure]
+
+    - name: "Configure login banner line 4"
+      ansible.builtin.raw: "configure banner line 4 \"*   Unauthorized access will be prosecuted.    *\""
+      tags: [banner, configure]
+
+    - name: "Configure login banner line 5"
+      ansible.builtin.raw: "configure banner line 5 \"***********************************************\""
+      tags: [banner, configure]
+
+    # ── Save ──────────────────────────────────────────────────────────────────
+
+    - name: "Save configuration"
+      ansible.builtin.raw: "save configuration"
+      tags: [configure, always]
+
+    # ── Verify ────────────────────────────────────────────────────────────────
+
+    - name: "Verify ports"
+      ansible.builtin.raw: "show ports information | head -10"
+      register: port_info
+      changed_when: false
+      tags: [verify]
+
+    - name: "Verify NTP"
+      ansible.builtin.raw: "show sntp-client"
+      register: ntp_info
+      changed_when: false
+      tags: [verify]
+
+    - name: "Verify syslog"
+      ansible.builtin.raw: "show log configuration"
+      register: syslog_info
+      changed_when: false
+      tags: [verify]
+
+    - name: "Display verification results"
+      ansible.builtin.debug:
+        msg:
+          - "Ports: {{ port_info.stdout_lines }}"
+          - "NTP:   {{ ntp_info.stdout_lines }}"
+          - "Syslog:{{ syslog_info.stdout_lines }}"
+      tags: [verify]
+
+    - name: "Branch switch configuration complete"
+      ansible.builtin.debug:
+        msg:
+          - "BR-SW1 fully configured."
+          - "Access ports 2 (WIN10-WS1) and 3 (PC1) set untagged."
+          - "Syslog target 10.10.10.108 configured — activates after Task 9 VPN."
+          - "Next step: Configure BR-CAIrv-FW1 firewall rules (Task 8F in guide)."
+      tags: [always]

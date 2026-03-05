@@ -1,0 +1,182 @@
+---
+# task5_stp/stp_configure.yml
+# Bigfork IT — Capstone Lab — Task 5: STP Configuration
+#
+# Uses raw SSH by default. Install collection for full module support:
+#   bash utils/install_collections.sh
+#
+# Run from capstone_automation/ root:
+#   ansible-playbook -i ansible_inventory.yml task5_stp/stp_configure.yml
+#   ansible-playbook -i ansible_inventory.yml task5_stp/stp_configure.yml --tags verify
+#   ansible-playbook -i ansible_inventory.yml task5_stp/stp_configure.yml --limit SW1-CORE
+
+# ── PLAY 1: Configure STP via raw SSH ────────────────────────────────────────
+- name: Task 5 — Configure STP via raw SSH
+  hosts: all_switches
+  gather_facts: no
+  vars:
+    ansible_connection: ssh
+    ansible_user: case
+    ansible_password: "sidewaays"
+    ansible_ssh_common_args: >-
+      -o StrictHostKeyChecking=no
+      -o KexAlgorithms=+diffie-hellman-group14-sha1
+      -o HostKeyAlgorithms=+ssh-rsa
+      -o PubkeyAcceptedKeyTypes=+ssh-rsa
+
+  tasks:
+    - name: "{{ inventory_hostname }} — create STP domain s0"
+      ansible.builtin.raw: "create stpd s0"
+      ignore_errors: yes
+
+    - name: "{{ inventory_hostname }} — enable STP domain s0"
+      ansible.builtin.raw: "enable stpd s0"
+
+    - name: "{{ inventory_hostname }} — set MSTP CIST mode"
+      ansible.builtin.raw: "configure stpd s0 mode mstp cist"
+
+    - name: "{{ inventory_hostname }} — set bridge priority"
+      ansible.builtin.raw: "configure stpd s0 priority {{ stp_priority | default(32768) }}"
+
+    - name: "{{ inventory_hostname }} — add Default VLAN to STP"
+      ansible.builtin.raw: "configure stpd s0 add vlan Default ports all"
+      ignore_errors: yes
+
+    - name: "{{ inventory_hostname }} — add MGMT_NET to STP"
+      ansible.builtin.raw: "configure stpd s0 add vlan MGMT_NET ports all"
+      ignore_errors: yes
+
+    - name: "{{ inventory_hostname }} — add CORP_NET to STP"
+      ansible.builtin.raw: "configure stpd s0 add vlan CORP_NET ports all"
+      ignore_errors: yes
+
+    - name: "{{ inventory_hostname }} — add DMZ_NET to STP"
+      ansible.builtin.raw: "configure stpd s0 add vlan DMZ_NET ports all"
+      ignore_errors: yes
+
+    - name: "{{ inventory_hostname }} — add GUEST_NET to STP"
+      ansible.builtin.raw: "configure stpd s0 add vlan GUEST_NET ports all"
+      ignore_errors: yes
+
+    - name: "{{ inventory_hostname }} — enable auto-bind"
+      ansible.builtin.raw: "enable stpd s0 auto-bind vlan Default"
+      ignore_errors: yes
+
+    - name: "{{ inventory_hostname }} — set edge ports on access switches"
+      ansible.builtin.raw: "configure stpd s0 ports mode edge all"
+      when: switch_role in ['access', 'branch_access']
+      ignore_errors: yes
+
+    - name: "{{ inventory_hostname }} — save configuration"
+      ansible.builtin.raw: "save configuration primary"
+
+    - name: "{{ inventory_hostname }} — verify STP state"
+      ansible.builtin.raw: "show stpd s0"
+      register: stp_out
+      tags: verify
+
+    - name: "{{ inventory_hostname }} — STP verification"
+      debug:
+        msg: "{{ stp_out.stdout_lines }}"
+      tags: verify
+
+
+# ── PLAY 2: Wait for convergence and check root ───────────────────────────────
+- name: Task 5 — STP Convergence Check
+  hosts: all_switches
+  gather_facts: no
+  vars:
+    ansible_connection: ssh
+    ansible_user: case
+    ansible_password: "sidewaays"
+    ansible_ssh_common_args: >-
+      -o StrictHostKeyChecking=no
+      -o KexAlgorithms=+diffie-hellman-group14-sha1
+      -o HostKeyAlgorithms=+ssh-rsa
+      -o PubkeyAcceptedKeyTypes=+ssh-rsa
+
+  tasks:
+    - name: Wait for STP convergence
+      pause:
+        seconds: 10
+        prompt: "Waiting 10s for STP to converge..."
+      run_once: true
+
+    - name: "{{ inventory_hostname }} — get final STP status"
+      ansible.builtin.raw: "show stpd s0"
+      register: final_stp
+
+    - name: "{{ inventory_hostname }} — root bridge confirmation"
+      debug:
+        msg: "ROOT BRIDGE CONFIRMED: {{ inventory_hostname }}"
+      when:
+        - switch_role == 'core'
+        - "'Root Bridge' in final_stp.stdout or 'This bridge is the root' in final_stp.stdout"
+
+    - name: "{{ inventory_hostname }} — root bridge warning"
+      debug:
+        msg: "WARNING: {{ inventory_hostname }} should be root (priority {{ stp_priority }}) but not showing as root"
+      when:
+        - switch_role == 'core'
+        - "'Root Bridge' not in final_stp.stdout"
+        - "'This bridge is the root' not in final_stp.stdout"
+
+    - name: Save STP output to local file
+      local_action:
+        module: copy
+        content: "STP Verification — {{ inventory_hostname }}\nPriority: {{ stp_priority | default(32768) }}\nRole: {{ switch_role }}\n\n{{ final_stp.stdout }}\n"
+        dest: "./stp_verify_{{ inventory_hostname }}.txt"
+      ignore_errors: yes
+
+
+# ── PLAY 3: Collection-based (when installed) ─────────────────────────────────
+- name: Task 5 — STP via EXOS collection (if installed)
+  hosts: all_switches
+  gather_facts: no
+  vars:
+    ansible_connection: ssh
+    ansible_shell_type: sh
+    ansible_python_interpreter: none
+    ansible_user: case
+    ansible_password: "sidewaays"
+
+  tasks:
+    - name: Collection-based STP config
+      block:
+        - name: Configure STP via module
+          extremenetworks.exos.exos_command:
+            commands:
+              - "create stpd s0"
+              - "enable stpd s0"
+              - "configure stpd s0 mode mstp cist"
+              - "configure stpd s0 priority {{ stp_priority | default(32768) }}"
+              - "save configuration primary"
+          ignore_errors: yes
+      rescue:
+        - debug:
+            msg: "Collection not available — raw SSH handled this in Play 1"
+      when: false   # Set to true after: bash utils/install_collections.sh
+
+
+# ── PLAY 4: Summary ───────────────────────────────────────────────────────────
+- name: Task 5 — Summary
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Task 5 summary
+      debug:
+        msg:
+          - "========================================================"
+          - "  Task 5: STP Configuration Complete"
+          - "  SW1-CORE:         Priority 4096  — ROOT BRIDGE"
+          - "  SW2-DIST-1:       Priority 8192  — Distribution"
+          - "  SW3/4/5:    Priority 32768 — Access"
+          - "  BR-SW1:     Priority 32768 — Branch"
+          - ""
+          - "  Verify files: stp_verify_*.txt"
+          - ""
+          - "  Test failover:"
+          - "    ssh case@10.10.10.11"
+          - "    disable port 1   (watch SW2/SW3 reconverge)"
+          - "    enable port 1"
+          - "========================================================"

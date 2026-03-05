@@ -1,0 +1,71 @@
+---
+# Ansible Inventory — Bigfork IT Capstone Lab
+# Commit this file to the repo — do not rely on discover_inventory.py for base inventory
+
+all:
+  vars:
+    ansible_user: case
+    ansible_password: "sidewaays"
+    ansible_connection: ssh
+    ansible_become: no
+    pfsense_hq_ip: "10.10.10.1"
+    pfsense_branch_ip: "10.20.10.1"
+    syslog_server: "10.10.10.108"
+
+  children:
+
+    hq_switches:
+      hosts:
+        SW1-CORE:
+          ansible_host: 10.10.10.11
+          switch_role: core
+        SW2-DIST-1:
+          ansible_host: 10.10.10.12
+          switch_role: distribution
+        SW3-DIST-2:
+          ansible_host: 10.10.10.13
+          switch_role: distribution
+        SW4-ACCESS1-CORP:
+          ansible_host: 10.10.10.14
+          switch_role: access
+        SW5-ACCESS2-DMZ:
+          ansible_host: 10.10.10.15
+          switch_role: access
+
+    branch_switches:
+      hosts:
+        BR-SW1:
+          ansible_host: 10.20.10.21
+          switch_role: branch_access
+
+    core:
+      hosts:
+        SW1-CORE:
+
+    distribution:
+      hosts:
+        SW2-DIST-1:
+        SW3-DIST-2:
+
+    access:
+      hosts:
+        SW4-ACCESS1-CORP:
+        SW5-ACCESS2-DMZ:
+
+    all_switches:
+      children:
+        hq_switches:
+        branch_switches:
+
+    firewalls:
+      hosts:
+        HQ-FW1:
+          ansible_host: 10.10.10.1
+          ansible_user: admin
+          ansible_password: "sidewaays"
+          site: hq
+        BR-CA-Irv-FW1:
+          ansible_host: 10.20.10.1
+          ansible_user: admin
+          ansible_password: "sidewaays"
+          site: branch

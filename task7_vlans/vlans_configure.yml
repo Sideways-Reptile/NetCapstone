@@ -1,0 +1,171 @@
+---
+# task7_vlans/vlans_configure.yml
+# Bigfork IT — Capstone Lab — Task 7: VLAN Segmentation & 802.1Q Trunking
+
+# ── PLAY 1: Create VLANs on all switches ──────────────────────────────────────
+- name: Task 7 — Create VLANs on all switches
+  hosts: hq_switches
+  gather_facts: no
+  vars:
+    ansible_connection: ssh
+    ansible_user: case
+    ansible_password: "sidewaays"
+    ansible_ssh_common_args: >-
+      -o StrictHostKeyChecking=no
+      -o KexAlgorithms=+diffie-hellman-group14-sha1
+      -o HostKeyAlgorithms=+ssh-rsa
+      -o PubkeyAcceptedKeyTypes=+ssh-rsa
+
+  tasks:
+    - name: "{{ inventory_hostname }} — create MGMT_NET VLAN 10"
+      ansible.builtin.raw: "create vlan MGMT_NET tag 10"
+      ignore_errors: yes
+
+    - name: "{{ inventory_hostname }} — create CORP_NET VLAN 20"
+      ansible.builtin.raw: "create vlan CORP_NET tag 20"
+      ignore_errors: yes
+
+    - name: "{{ inventory_hostname }} — create DMZ_NET VLAN 30"
+      ansible.builtin.raw: "create vlan DMZ_NET tag 30"
+      ignore_errors: yes
+
+    - name: "{{ inventory_hostname }} — create GUEST_NET VLAN 40"
+      ansible.builtin.raw: "create vlan GUEST_NET tag 40"
+      ignore_errors: yes
+
+    - name: "{{ inventory_hostname }} — save after VLAN creation"
+      ansible.builtin.raw: "save configuration primary"
+      ignore_errors: yes
+
+
+# ── PLAY 2: Migrate MGMT IP from Default to MGMT_NET ─────────────────────────
+- name: Task 7 — Migrate MGMT IP from Default VLAN to MGMT_NET
+  hosts: hq_switches
+  gather_facts: no
+  vars:
+    ansible_connection: ssh
+    ansible_user: case
+    ansible_password: "sidewaays"
+    ansible_ssh_common_args: >-
+      -o StrictHostKeyChecking=no
+      -o KexAlgorithms=+diffie-hellman-group14-sha1
+      -o HostKeyAlgorithms=+ssh-rsa
+      -o PubkeyAcceptedKeyTypes=+ssh-rsa
+
+  tasks:
+    - name: "{{ inventory_hostname }} — assign MGMT IP to MGMT_NET VLAN 10"
+      ansible.builtin.raw: "configure vlan MGMT_NET ipaddress {{ ansible_host }} 255.255.255.0"
+      ignore_errors: yes
+
+    - name: "{{ inventory_hostname }} — remove IP from Default VLAN"
+      ansible.builtin.raw: "unconfigure vlan Default ipaddress"
+      ignore_errors: yes
+
+    - name: "{{ inventory_hostname }} — save after IP migration"
+      ansible.builtin.raw: "save configuration primary"
+      ignore_errors: yes
+
+
+# ── PLAY 3: Configure trunk ports (Core and Distribution) ────────────────────
+- name: Task 7 — Configure trunk ports on Core and Distribution
+  hosts: core,distribution
+  gather_facts: no
+  vars:
+    ansible_connection: ssh
+    ansible_user: case
+    ansible_password: "sidewaays"
+    ansible_ssh_common_args: >-
+      -o StrictHostKeyChecking=no
+      -o KexAlgorithms=+diffie-hellman-group14-sha1
+      -o HostKeyAlgorithms=+ssh-rsa
+      -o PubkeyAcceptedKeyTypes=+ssh-rsa
+    trunk_ports: "1,2,3,5"
+
+  tasks:
+    - name: "{{ inventory_hostname }} — tag all VLANs on trunk ports"
+      ansible.builtin.raw: "{{ item }}"
+      loop:
+        - "configure vlan MGMT_NET add ports {{ trunk_ports }} tagged"
+        - "configure vlan CORP_NET add ports {{ trunk_ports }} tagged"
+        - "configure vlan DMZ_NET add ports {{ trunk_ports }} tagged"
+        - "configure vlan GUEST_NET add ports {{ trunk_ports }} tagged"
+      ignore_errors: yes
+
+    - name: "SW1-CORE — port 4 untagged MGMT_NET (Ubu-WS01)"
+      ansible.builtin.raw: "configure vlan MGMT_NET add ports 4 untagged"
+      when: inventory_hostname == 'SW1-CORE'
+      ignore_errors: yes
+
+    - name: "SW3-DIST-2 — port 4 untagged GUEST_NET (WS-Gst)"
+      ansible.builtin.raw: "configure vlan GUEST_NET add ports 4 untagged"
+      when: inventory_hostname == 'SW3-DIST-2'
+      ignore_errors: yes
+
+    - name: "{{ inventory_hostname }} — save"
+      ansible.builtin.raw: "save configuration primary"
+      ignore_errors: yes
+
+
+# ── PLAY 4: Configure access switches ────────────────────────────────────────
+- name: Task 7 — Configure access switch uplinks and access ports
+  hosts: access
+  gather_facts: no
+  vars:
+    ansible_connection: ssh
+    ansible_user: case
+    ansible_password: "sidewaays"
+    ansible_ssh_common_args: >-
+      -o StrictHostKeyChecking=no
+      -o KexAlgorithms=+diffie-hellman-group14-sha1
+      -o HostKeyAlgorithms=+ssh-rsa
+      -o PubkeyAcceptedKeyTypes=+ssh-rsa
+    uplink_port: "1"
+
+  tasks:
+    - name: "{{ inventory_hostname }} — tag all VLANs on uplink port"
+      ansible.builtin.raw: "{{ item }}"
+      loop:
+        - "configure vlan MGMT_NET add ports {{ uplink_port }} tagged"
+        - "configure vlan CORP_NET add ports {{ uplink_port }} tagged"
+        - "configure vlan DMZ_NET add ports {{ uplink_port }} tagged"
+        - "configure vlan GUEST_NET add ports {{ uplink_port }} tagged"
+      ignore_errors: yes
+
+    - name: "SW4-ACCESS1-CORP — port 3 untagged CORP_NET"
+      ansible.builtin.raw: "configure vlan CORP_NET add ports 3 untagged"
+      when: inventory_hostname == 'SW4-ACCESS1-CORP'
+      ignore_errors: yes
+
+    - name: "SW5-ACCESS2-DMZ — port 3 untagged DMZ_NET"
+      ansible.builtin.raw: "configure vlan DMZ_NET add ports 3 untagged"
+      when: inventory_hostname == 'SW5-ACCESS2-DMZ'
+      ignore_errors: yes
+
+    - name: "{{ inventory_hostname }} — save"
+      ansible.builtin.raw: "save configuration primary"
+      ignore_errors: yes
+
+
+# ── PLAY 5: Final verification ────────────────────────────────────────────────
+- name: Task 7 — Final VLAN verification
+  hosts: hq_switches
+  gather_facts: no
+  vars:
+    ansible_connection: ssh
+    ansible_user: case
+    ansible_password: "sidewaays"
+    ansible_ssh_common_args: >-
+      -o StrictHostKeyChecking=no
+      -o KexAlgorithms=+diffie-hellman-group14-sha1
+      -o HostKeyAlgorithms=+ssh-rsa
+      -o PubkeyAcceptedKeyTypes=+ssh-rsa
+  tags: verify
+
+  tasks:
+    - name: "{{ inventory_hostname }} — show vlan"
+      ansible.builtin.raw: "show vlan"
+      register: vlan_out
+
+    - name: "{{ inventory_hostname }} — VLAN summary"
+      debug:
+        msg: "{{ vlan_out.stdout_lines | default([]) }}"
