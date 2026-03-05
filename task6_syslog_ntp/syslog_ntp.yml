@@ -65,11 +65,12 @@
       tags: ntp
 
     - name: "{{ inventory_hostname }} — set primary NTP (pfSense)"
-      ansible.builtin.raw: "configure sntp-client server primary {{ ntp_primary }}"
+      ansible.builtin.raw: "configure sntp-client primary {{ ntp_primary }}"
+      ignore_errors: yes
       tags: ntp
 
     - name: "{{ inventory_hostname }} — set secondary NTP (public)"
-      ansible.builtin.raw: "configure sntp-client server secondary 0.pool.ntp.org"
+      ansible.builtin.raw: "configure sntp-client secondary 8.8.8.8"
       ignore_errors: yes
       tags: ntp
 
