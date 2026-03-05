@@ -31,15 +31,6 @@
   gather_facts: no
   tags: [preflight, always]
   vars:
-    ansible_connection: ssh
-    ansible_user: case
-    ansible_password: "sidewaays"
-    ansible_ssh_common_args: >-
-      -o StrictHostKeyChecking=no
-      -o ConnectTimeout=5
-      -o KexAlgorithms=+diffie-hellman-group14-sha1
-      -o HostKeyAlgorithms=+ssh-rsa
-      -o PubkeyAcceptedKeyTypes=+ssh-rsa
   tasks:
     - name: "{{ inventory_hostname }} — SSH check"
       ansible.builtin.raw: "show switch | grep SysName"

@@ -4,9 +4,6 @@
 
 all:
   vars:
-    ansible_user: case
-    ansible_password: "sidewaays"
-    ansible_connection: ssh
     ansible_become: no
     pfsense_hq_ip: "10.10.10.1"
     pfsense_branch_ip: "10.20.10.1"
@@ -62,10 +59,8 @@ all:
         HQ-FW1:
           ansible_host: 10.10.10.1
           ansible_user: admin
-          ansible_password: "sidewaays"
           site: hq
         BR-CA-Irv-FW1:
           ansible_host: 10.20.10.1
           ansible_user: admin
-          ansible_password: "sidewaays"
           site: branch

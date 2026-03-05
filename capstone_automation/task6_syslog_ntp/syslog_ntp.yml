@@ -12,14 +12,6 @@
   hosts: all_switches
   gather_facts: no
   vars:
-    ansible_connection: ssh
-    ansible_user: case
-    ansible_password: "sidewaays"
-    ansible_ssh_common_args: >-
-      -o StrictHostKeyChecking=no
-      -o KexAlgorithms=+diffie-hellman-group14-sha1
-      -o HostKeyAlgorithms=+ssh-rsa
-      -o PubkeyAcceptedKeyTypes=+ssh-rsa
     syslog_server: "10.10.10.108"
     syslog_port:   514
     ntp_primary:   "10.10.10.1"

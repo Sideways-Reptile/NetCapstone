@@ -2,9 +2,6 @@
 # Ansible Inventory — Bigfork IT Capstone Lab
 all:
   vars:
-    ansible_user: case
-    ansible_password: "sidewaays"
-    ansible_connection: ssh
     ansible_become: no
 
   children:

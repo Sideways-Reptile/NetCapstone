@@ -7,14 +7,6 @@
   hosts: hq_switches
   gather_facts: no
   vars:
-    ansible_connection: ssh
-    ansible_user: case
-    ansible_password: "sidewaays"
-    ansible_ssh_common_args: >-
-      -o StrictHostKeyChecking=no
-      -o KexAlgorithms=+diffie-hellman-group14-sha1
-      -o HostKeyAlgorithms=+ssh-rsa
-      -o PubkeyAcceptedKeyTypes=+ssh-rsa
 
   tasks:
     - name: "{{ inventory_hostname }} — create MGMT_NET VLAN 10"
@@ -43,14 +35,6 @@
   hosts: hq_switches
   gather_facts: no
   vars:
-    ansible_connection: ssh
-    ansible_user: case
-    ansible_password: "sidewaays"
-    ansible_ssh_common_args: >-
-      -o StrictHostKeyChecking=no
-      -o KexAlgorithms=+diffie-hellman-group14-sha1
-      -o HostKeyAlgorithms=+ssh-rsa
-      -o PubkeyAcceptedKeyTypes=+ssh-rsa
 
   tasks:
     - name: "{{ inventory_hostname }} — assign MGMT IP to MGMT_NET VLAN 10"
@@ -71,14 +55,6 @@
   hosts: core,distribution
   gather_facts: no
   vars:
-    ansible_connection: ssh
-    ansible_user: case
-    ansible_password: "sidewaays"
-    ansible_ssh_common_args: >-
-      -o StrictHostKeyChecking=no
-      -o KexAlgorithms=+diffie-hellman-group14-sha1
-      -o HostKeyAlgorithms=+ssh-rsa
-      -o PubkeyAcceptedKeyTypes=+ssh-rsa
     trunk_ports: "1,2,3,5"
 
   tasks:
@@ -111,14 +87,6 @@
   hosts: access
   gather_facts: no
   vars:
-    ansible_connection: ssh
-    ansible_user: case
-    ansible_password: "sidewaays"
-    ansible_ssh_common_args: >-
-      -o StrictHostKeyChecking=no
-      -o KexAlgorithms=+diffie-hellman-group14-sha1
-      -o HostKeyAlgorithms=+ssh-rsa
-      -o PubkeyAcceptedKeyTypes=+ssh-rsa
     uplink_port: "1"
 
   tasks:
@@ -151,14 +119,6 @@
   hosts: hq_switches
   gather_facts: no
   vars:
-    ansible_connection: ssh
-    ansible_user: case
-    ansible_password: "sidewaays"
-    ansible_ssh_common_args: >-
-      -o StrictHostKeyChecking=no
-      -o KexAlgorithms=+diffie-hellman-group14-sha1
-      -o HostKeyAlgorithms=+ssh-rsa
-      -o PubkeyAcceptedKeyTypes=+ssh-rsa
   tags: verify
 
   tasks:

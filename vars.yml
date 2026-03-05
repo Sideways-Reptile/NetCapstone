@@ -2,10 +2,3 @@
 # Plain vars file — references encrypted vault values
 # Safe to commit to GitHub
 
-ansible_user: case
-ansible_password: "{{ vault_switch_password }}"
-ansible_ssh_common_args: >-
-  -o StrictHostKeyChecking=no
-  -o KexAlgorithms=+diffie-hellman-group14-sha1
-  -o HostKeyAlgorithms=+ssh-rsa
-  -o PubkeyAcceptedKeyTypes=+ssh-rsa

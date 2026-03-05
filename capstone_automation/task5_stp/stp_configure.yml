@@ -15,14 +15,6 @@
   hosts: all_switches
   gather_facts: no
   vars:
-    ansible_connection: ssh
-    ansible_user: case
-    ansible_password: "sidewaays"
-    ansible_ssh_common_args: >-
-      -o StrictHostKeyChecking=no
-      -o KexAlgorithms=+diffie-hellman-group14-sha1
-      -o HostKeyAlgorithms=+ssh-rsa
-      -o PubkeyAcceptedKeyTypes=+ssh-rsa
 
   tasks:
     - name: "{{ inventory_hostname }} — create STP domain s0"
@@ -86,14 +78,6 @@
   hosts: all_switches
   gather_facts: no
   vars:
-    ansible_connection: ssh
-    ansible_user: case
-    ansible_password: "sidewaays"
-    ansible_ssh_common_args: >-
-      -o StrictHostKeyChecking=no
-      -o KexAlgorithms=+diffie-hellman-group14-sha1
-      -o HostKeyAlgorithms=+ssh-rsa
-      -o PubkeyAcceptedKeyTypes=+ssh-rsa
 
   tasks:
     - name: Wait for STP convergence
@@ -136,8 +120,6 @@
   vars:
     ansible_network_os: extreme_exos
     ansible_connection: network_cli
-    ansible_user: case
-    ansible_password: "sidewaays"
 
   tasks:
     - name: Collection-based STP config

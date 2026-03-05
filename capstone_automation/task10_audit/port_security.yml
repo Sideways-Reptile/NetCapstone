@@ -20,14 +20,6 @@
   hosts: SW4-ACCESS1-CORP,SW5-ACCESS2-DMZ
   gather_facts: false
   vars:
-    ansible_connection: ssh
-    ansible_user: case
-    ansible_password: "sidewaays"
-    ansible_ssh_common_args: >-
-      -o StrictHostKeyChecking=no
-      -o KexAlgorithms=+diffie-hellman-group14-sha1
-      -o HostKeyAlgorithms=+ssh-rsa
-      -o PubkeyAcceptedKeyTypes=+ssh-rsa
 
   tasks:
 
@@ -86,14 +78,6 @@
   hosts: SW3-DIST-2
   gather_facts: false
   vars:
-    ansible_connection: ssh
-    ansible_user: case
-    ansible_password: "sidewaays"
-    ansible_ssh_common_args: >-
-      -o StrictHostKeyChecking=no
-      -o KexAlgorithms=+diffie-hellman-group14-sha1
-      -o HostKeyAlgorithms=+ssh-rsa
-      -o PubkeyAcceptedKeyTypes=+ssh-rsa
 
   tasks:
 
@@ -123,14 +107,6 @@
   hosts: BR-SW1
   gather_facts: false
   vars:
-    ansible_connection: ssh
-    ansible_user: case
-    ansible_password: "sidewaays"
-    ansible_ssh_common_args: >-
-      -o StrictHostKeyChecking=no
-      -o KexAlgorithms=+diffie-hellman-group14-sha1
-      -o HostKeyAlgorithms=+ssh-rsa
-      -o PubkeyAcceptedKeyTypes=+ssh-rsa
 
   tasks:
 

@@ -1,0 +1,8 @@
+
+# Ansible Vault password file — NEVER commit this
+.vault_pass
+*.vault_pass
+
+# Security audit reports
+security_audit_*.json
+security_audit_*.txt
