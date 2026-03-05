@@ -14,7 +14,20 @@
 #               → BR-SW1           ports 2-3 (Branch devices)
 #   Port Isolation → ALL access ports including GUEST (SW3-DIST-2 port 4)
 #   NEVER lock or isolate trunk ports
+#
+# PATCH NOTES:
+#   - Replaced 'learn-until-lock' with 'first-arrival' syntax — correct EXOS method
+#   - Removed per-VLAN MAC locking — EXOS first-arrival works at port level
+#   - Added 'learn-limit-action remain-enabled' — port stays UP on violation,
+#     drops unknown MAC traffic instead of shutting the port down.
+#     This means: unplug locked device, plug in rogue device = traffic blocked.
+#     Plug original device back in = works immediately, no admin intervention.
+#   - Added 'link-down-action retain-macs' — locked MAC survives link flap.
+#     Without this, a link bounce clears the lock and re-learns on next connect.
+#   - Added trap + log violation — violations appear in syslog on Ubu-WS01.
 # ============================================================
+
+# ── HQ ACCESS SWITCHES ───────────────────────────────────────────────────────
 
 - name: "Port Security — Sticky MAC on CORP and DMZ Access Ports"
   hosts: SW4-ACCESS1-CORP,SW5-ACCESS2-DMZ
@@ -37,20 +50,28 @@
       ansible.builtin.raw: "enable mac-locking"
       tags: [mac_lock, configure]
 
-    - name: "CORP — enable MAC locking on port 3 (CORP devices)"
-      ansible.builtin.raw: |
-        enable mac-locking ports 3 vlan CORP_NET
-        configure mac-locking ports 3 vlan CORP_NET maximum-MAC-addresses 1
-        configure mac-locking ports 3 vlan CORP_NET learn-until-lock
-      when: inventory_hostname == 'SW4-ACCESS1-CORP'
+    - name: "Enable MAC locking on port 3"
+      ansible.builtin.raw: "enable mac-locking ports 3"
       tags: [mac_lock, configure]
 
-    - name: "DMZ — enable MAC locking on port 3 (FILE-SVR1)"
-      ansible.builtin.raw: |
-        enable mac-locking ports 3 vlan DMZ_NET
-        configure mac-locking ports 3 vlan DMZ_NET maximum-MAC-addresses 1
-        configure mac-locking ports 3 vlan DMZ_NET learn-until-lock
-      when: inventory_hostname == 'SW5-ACCESS2-DMZ'
+    - name: "Configure first-arrival MAC lock — limit to 1 MAC"
+      ansible.builtin.raw: "configure mac-locking ports 3 first-arrival limit-learning 1"
+      tags: [mac_lock, configure]
+
+    - name: "Configure retain-macs on link-down — survives cable unplug"
+      ansible.builtin.raw: "configure mac-locking ports 3 first-arrival link-down-action retain-macs"
+      tags: [mac_lock, configure]
+
+    - name: "Configure violation action — remain-enabled (port stays UP, drops rogue traffic)"
+      ansible.builtin.raw: "configure mac-locking ports 3 learn-limit-action remain-enabled"
+      tags: [mac_lock, configure]
+
+    - name: "Configure violation trap — sends SNMP trap on violation"
+      ansible.builtin.raw: "configure mac-locking ports 3 trap violation on"
+      tags: [mac_lock, configure]
+
+    - name: "Configure violation log — logs to syslog on violation"
+      ansible.builtin.raw: "configure mac-locking ports 3 log violation on"
       tags: [mac_lock, configure]
 
     - name: "Enable port isolation on access port 3"
@@ -84,6 +105,8 @@
       tags: [verify]
 
 
+# ── GUEST PORT — ISOLATION ONLY ──────────────────────────────────────────────
+
 - name: "Port Security — Port Isolation on GUEST Port (SW3-DIST-2)"
   hosts: SW3-DIST-2
   gather_facts: false
@@ -106,6 +129,7 @@
       tags: [isolation, configure]
       # NOTE: No MAC locking on GUEST — high-churn environment.
       # Port isolation forces all GUEST traffic through pfSense firewall.
+      # pfSense GUEST rules handle the actual RFC1918 blocking.
 
     - name: "Save configuration"
       ansible.builtin.raw: "save configuration"
@@ -122,6 +146,8 @@
         msg: "{{ guest_isolation.stdout_lines }}"
       tags: [verify]
 
+
+# ── BRANCH SWITCH ─────────────────────────────────────────────────────────────
 
 - name: "Port Security — Branch Switch (BR-SW1)"
   hosts: BR-SW1
@@ -144,18 +170,38 @@
       ansible.builtin.raw: "enable mac-locking"
       tags: [mac_lock, configure]
 
-    - name: "Branch — MAC lock port 2 (WIN10-WS1)"
+    - name: "Enable MAC locking on ports 2 and 3"
       ansible.builtin.raw: |
-        enable mac-locking ports 2 vlan Default
-        configure mac-locking ports 2 vlan Default maximum-MAC-addresses 1
-        configure mac-locking ports 2 vlan Default learn-until-lock
+        enable mac-locking ports 2
+        enable mac-locking ports 3
       tags: [mac_lock, configure]
 
-    - name: "Branch — MAC lock port 3 (PC1)"
+    - name: "Configure first-arrival MAC lock — port 2, limit 1 MAC"
+      ansible.builtin.raw: "configure mac-locking ports 2 first-arrival limit-learning 1"
+      tags: [mac_lock, configure]
+
+    - name: "Configure first-arrival MAC lock — port 3, limit 1 MAC"
+      ansible.builtin.raw: "configure mac-locking ports 3 first-arrival limit-learning 1"
+      tags: [mac_lock, configure]
+
+    - name: "Configure retain-macs on link-down — ports 2 and 3"
       ansible.builtin.raw: |
-        enable mac-locking ports 3 vlan Default
-        configure mac-locking ports 3 vlan Default maximum-MAC-addresses 1
-        configure mac-locking ports 3 vlan Default learn-until-lock
+        configure mac-locking ports 2 first-arrival link-down-action retain-macs
+        configure mac-locking ports 3 first-arrival link-down-action retain-macs
+      tags: [mac_lock, configure]
+
+    - name: "Configure violation action — remain-enabled on ports 2 and 3"
+      ansible.builtin.raw: |
+        configure mac-locking ports 2 learn-limit-action remain-enabled
+        configure mac-locking ports 3 learn-limit-action remain-enabled
+      tags: [mac_lock, configure]
+
+    - name: "Configure violation trap and log — ports 2 and 3"
+      ansible.builtin.raw: |
+        configure mac-locking ports 2 trap violation on
+        configure mac-locking ports 2 log violation on
+        configure mac-locking ports 3 trap violation on
+        configure mac-locking ports 3 log violation on
       tags: [mac_lock, configure]
 
     - name: "Branch — port isolation on ports 2 and 3"
