@@ -4,15 +4,8 @@ task1_segmentation/validate_segmentation.py
 Bigfork IT — Capstone Lab
 
 Validates Task 1: Network Segmentation & Reachability
-Tests all expected PASS and FAIL paths per the access control matrix.
-
-Access Matrix:
-  MGMT  → CORP/DMZ/GUEST/Internet  : PASS
-  CORP  → DMZ/Internet             : PASS
-  CORP  → MGMT/GUEST               : FAIL (blocked)
-  GUEST → Internet                 : PASS
-  GUEST → RFC1918                  : FAIL (blocked)
-  DMZ   → Any outbound             : FAIL (blocked)
+Tests all HQ devices for reachability and SSH connectivity.
+Branch site validation is handled in task8_branch/validate_branch.py
 
 Usage:
   python3 validate_segmentation.py
@@ -35,34 +28,34 @@ from utils.exos_helper import (
 # ─── TEST DEFINITIONS ─────────────────────────────────────────────────────────
 # Each test: (label, host_to_ping, should_pass, description)
 REACHABILITY_TESTS = [
-    # From MGMT perspective (Ubu-WS01 = 10.10.10.108)
-    ("MGMT → HQ-FW1 MGMT gw",  "10.10.10.1",    True,  "MGMT can reach its own gateway"),
-    ("MGMT → CORP gateway",     "172.16.1.1",    True,  "MGMT can reach CORP segment"),
-    ("MGMT → DMZ gateway",      "192.168.100.1", True,  "MGMT can reach DMZ segment"),
-    ("MGMT → GUEST gateway",    "192.168.200.1", True,  "MGMT can reach GUEST segment"),
-    ("MGMT → Internet (8.8.8.8)","8.8.8.8",      True,  "MGMT has internet access"),
-    ("MGMT → Branch FW WAN",    "100.64.0.2",    True,  "MGMT can reach Branch WAN (via VPN or direct)"),
+    # pfSense gateway reachability
+    ("MGMT → HQ-FW1 MGMT gw",   "10.10.10.1",    True, "MGMT can reach its own gateway"),
+    ("MGMT → CORP gateway",      "172.16.1.1",    True, "MGMT can reach CORP segment"),
+    ("MGMT → DMZ gateway",       "192.168.100.1", True, "MGMT can reach DMZ segment"),
+    ("MGMT → GUEST gateway",     "192.168.200.1", True, "MGMT can reach GUEST segment"),
+    ("MGMT → Internet (8.8.8.8)","8.8.8.8",       True, "MGMT has internet access"),
 
     # Switch MGMT reachability
-    ("MGMT → SW1-CORE",         "10.10.10.11",   True,  "SW1-Core reachable from MGMT"),
-    ("MGMT → SW2-DIST-1",         "10.10.10.12",   True,  "SW2-Dist reachable from MGMT"),
-    ("MGMT → SW3-DIST-2",     "10.10.10.13",   True,  "SW3-Access-1 reachable from MGMT"),
-    ("MGMT → SW4-ACCESS1-CORP",     "10.10.10.14",   True,  "SW4-Access-2 reachable from MGMT"),
-    ("MGMT → SW5-ACCESS2-DMZ",     "10.10.10.15",   True,  "SW5-Access-3 reachable from MGMT"),
+    ("MGMT → SW1-CORE",          "10.10.10.11",   True, "SW1-CORE reachable from MGMT"),
+    ("MGMT → SW2-DIST-1",        "10.10.10.12",   True, "SW2-DIST-1 reachable from MGMT"),
+    ("MGMT → SW3-DIST-2",        "10.10.10.13",   True, "SW3-DIST-2 reachable from MGMT"),
+    ("MGMT → SW4-ACCESS1-CORP",  "10.10.10.14",   True, "SW4-ACCESS1-CORP reachable from MGMT"),
+    ("MGMT → SW5-ACCESS2-DMZ",   "10.10.10.15",   True, "SW5-ACCESS2-DMZ reachable from MGMT"),
 ]
 
 SSH_TESTS = [
-    ("SSH to HQ-FW1",   "10.10.10.1",  22, True),
-    ("SSH to SW1-CORE", "10.10.10.11", 22, True),
-    ("SSH to SW2-DIST-1", "10.10.10.12", 22, True),
-    ("SSH to SW3",      "10.10.10.13", 22, True),
-    ("SSH to SW4",      "10.10.10.14", 22, True),
-    ("SSH to SW5",      "10.10.10.15", 22, True),
+    ("SSH to HQ-FW1",            "10.10.10.1",  22, True),
+    ("SSH to SW1-CORE",          "10.10.10.11", 22, True),
+    ("SSH to SW2-DIST-1",        "10.10.10.12", 22, True),
+    ("SSH to SW3-DIST-2",        "10.10.10.13", 22, True),
+    ("SSH to SW4-ACCESS1-CORP",  "10.10.10.14", 22, True),
+    ("SSH to SW5-ACCESS2-DMZ",   "10.10.10.15", 22, True),
 ]
 
 HTTPS_TESTS = [
-    ("HTTPS to pfSense HQ",  "10.10.10.1",  443, True),
+    ("HTTPS to pfSense HQ",      "10.10.10.1",  443, True),
 ]
+
 
 
 # ─── MAIN ─────────────────────────────────────────────────────────────────────
