@@ -74,10 +74,10 @@ def banner(msg):
     print(f"  {msg}")
     print('='*60)
 
-def ok(msg):   print(f"  ✅  {msg}")
-def warn(msg): print(f"  ⚠️   {msg}")
-def fail(msg): print(f"  ❌  {msg}")
-def info(msg): print(f"  ℹ️   {msg}")
+def ok(msg):   print(f"  PASS  {msg}")
+def warn(msg): print(f"  WARN   {msg}")
+def fail(msg): print(f"  FAIL  {msg}")
+def info(msg): print(f"  INFO   {msg}")
 
 
 def ssh_connect(host, creds):
