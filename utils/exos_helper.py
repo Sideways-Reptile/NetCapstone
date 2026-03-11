@@ -77,10 +77,10 @@ SYSLOG_PORT = 514
 
 # ─── PRINT HELPERS ────────────────────────────────────────────────────────────
 
-def ok(msg):      print(f"  ✅  {msg}")
-def warn(msg):    print(f"  ⚠️   {msg}")
-def fail(msg):    print(f"  ❌  {msg}")
-def info(msg):    print(f"  ℹ️   {msg}")
+def ok(msg):      print(f"  PASS  {msg}")
+def warn(msg):    print(f"  WARN   {msg}")
+def fail(msg):    print(f"  FAIL  {msg}")
+def info(msg):    print(f"  INFO   {msg}")
 def section(msg): print(f"\n{'─'*60}\n  {msg}\n{'─'*60}")
 def banner_print(msg):
     print(f"\n{'='*60}")
