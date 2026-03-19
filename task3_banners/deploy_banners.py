@@ -72,7 +72,7 @@ def deploy(name, ip):
             send(chan, line, delay=0.1)
 
         # Terminate with dot
-        send(chan, ".", delay=4)
+        send(chan, "(chr(26))", delay=4)
 
         # Save
         out = send(chan, "save configuration primary", delay=2)
