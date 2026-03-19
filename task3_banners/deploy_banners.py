@@ -82,9 +82,9 @@ def deploy(name, ip):
         # Verify
         out = send(chan, "show banner", delay=1)
         if "AUTHORIZED" in out:
-            print(f"[{name}] ✅ BANNER VERIFIED")
+            print(f"[{name}] PASSED - BANNER VERIFIED")
         else:
-            print(f"[{name}] ⚠️  Banner not confirmed in show banner — check manually")
+            print(f"[{name}]WARNNG - Banner not confirmed in show banner — check manually")
             print(f"[{name}] Output: {out.strip()[:200]}")
 
         chan.close()
@@ -92,7 +92,7 @@ def deploy(name, ip):
         return True
 
     except Exception as e:
-        print(f"[{name}] ❌ FAILED: {e}")
+        print(f"[{name}] FAILED: {e}")
         return False
 
 if __name__ == "__main__":
