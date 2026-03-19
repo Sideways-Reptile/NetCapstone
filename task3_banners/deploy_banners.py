@@ -72,11 +72,11 @@ def deploy(name, ip):
             send(chan, line, delay=0.1)
 
         # Terminate with dot
-        chan.send(chr(26))
-        time.sleep(2)
+        send(chan, "", delay=1)
 
         # Save
         out = send(chan, "save configuration primary", delay=2)
+        send(chan, "y", delay=1)
         print(f"[{name}] Save output: {out.strip()[:80]}")
 
         # Verify
