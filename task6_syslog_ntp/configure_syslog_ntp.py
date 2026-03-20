@@ -73,7 +73,7 @@ def build_ntp_commands(sw_name, sw_info):
         # Set secondary (public)
         f"configure sntp-client secondary 0.pool.ntp.org",
         # Sync interval
-        f"configure sntp-client update-interval 3600",
+        f"configure sntp-client update-interval 300",
     ]
 
 
