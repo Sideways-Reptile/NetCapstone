@@ -50,12 +50,12 @@ def build_syslog_commands(sw_name, sw_info):
         # Enable log target
         f"enable log target syslog {SYSLOG_IP}:{SYSLOG_PORT} vr VR-Default",
         # Log severity: warnings and above to syslog
-        f"configure log target syslog {SYSLOG_IP}:{SYSLOG_PORT} vr VR-Default severity warnings",
+        f"configure log target syslog {SYSLOG_IP}:{SYSLOG_PORT} vr VR-Default severity warning",
         # Log filter — all events
         f"configure log filter DefaultFilter add events all",
         # Also enable local console logging
         f"enable log target console",
-        f"configure log target console severity informational",
+        f"configure log target console severity info",
     ]
 
 
