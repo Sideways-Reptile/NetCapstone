@@ -68,10 +68,10 @@ def build_ntp_commands(sw_name, sw_info):
         f"configure timezone name {TIMEZONE} {TZ_OFFSET}",
         # Enable SNTP client
         f"enable sntp-client",
-        # Set primary NTP server (pfSense)
-        f"configure sntp-client server primary {NTP_SERVER}",
+        # Set primary NTP server (OPNSense)
+        f"configure sntp-client primary {NTP_SERVER}",
         # Set secondary (public)
-        f"configure sntp-client server secondary 0.pool.ntp.org",
+        f"configure sntp-client secondary 0.pool.ntp.org",
         # Sync interval
         f"configure sntp-client update-interval 3600",
     ]
