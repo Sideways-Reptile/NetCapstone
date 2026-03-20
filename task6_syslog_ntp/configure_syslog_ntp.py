@@ -44,7 +44,7 @@ def build_syslog_commands(sw_name, sw_info):
     """EXOS syslog configuration commands."""
     return [
         # Remove old entry if present (ignore error)
-        f"unconfig syslog",
+        f"unconfig log",
         # Add syslog target
         f"configure syslog add {SYSLOG_IP}:{SYSLOG_PORT} vr VR-Default local7",
         # Enable log target
