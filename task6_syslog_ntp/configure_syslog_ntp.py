@@ -191,9 +191,9 @@ def configure_switches(switch_dict, syslog=True, ntp=True):
                 for cmd in commands:
                     out = sw.cmd(cmd)
                     if "Error" in out or "Invalid" in out:
-                        warn(f"  ⚠ {cmd!r} → {out.strip()[:60]}")
+                        warn(f" WARN {cmd!r} → {out.strip()[:60]}")
                     else:
-                        info(f"  ✓ {cmd}")
+                        info(f" PASS {cmd}")
 
                 sw.save()
                 results[sw_name] = {"success": True}
