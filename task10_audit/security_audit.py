@@ -381,9 +381,9 @@ def print_final_summary():
     print(f"""
   ┌─────────────────────────────────────────────────┐
   │  Total Checks:   {total:<5}                           │
-  │  ✅ PASS:        {total_pass:<5}                           │
-  │  ❌ FAIL:        {total_fail:<5}                           │
-  │  ⚠️  WARN:        {total_warn:<5}  (informational only)    │
+  │  PASS:        {total_pass:<5}                           │
+  │  FAIL:        {total_fail:<5}                           │
+  │  WARN:        {total_warn:<5}  (informational only)    │
   │                                                 │
   │  Score:          {pct}%                             │
   │  Grade:          {grade:<32} │
@@ -395,7 +395,7 @@ def print_final_summary():
         for task_key, entries in AUDIT_RESULTS["tasks"].items():
             for e in entries:
                 if e["status"] == "FAIL":
-                    print(f"    ❌  [{task_key}] {e['label']}")
+                    print(f"FAILED [{task_key}] {e['label']}")
                     if e.get("detail"):
                         print(f"         → {e['detail']}")
 
@@ -404,7 +404,7 @@ def print_final_summary():
         for task_key, entries in AUDIT_RESULTS["tasks"].items():
             for e in entries:
                 if e["status"] == "WARN":
-                    print(f"    ⚠️   [{task_key}] {e['label']}")
+                    print(f" WARNING  [{task_key}] {e['label']}")
     print()
 
 
@@ -480,7 +480,7 @@ def main():
     for task_key, entries in AUDIT_RESULTS["tasks"].items():
         lines.append(f"\n  [{task_key}]")
         for e in entries:
-            icon = {"PASS": "✓", "FAIL": "✗", "WARN": "⚠"}.get(e["status"], "?")
+            icon = {"PASS": "*", "FAIL": "x", "WARN": "!"}.get(e["status"], "?")
             lines.append(f"    {icon}  {e['label']}")
             if e.get("detail"):
                 lines.append(f"       → {e['detail']}")
